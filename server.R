@@ -2,6 +2,7 @@ server <- function(input, output, session) {
   
   route_bounds <- reactiveVal(NULL)
   initial_bounds <- reactiveVal(NULL)
+  route_text <- reactiveVal("")
   
   route_plan <- eventReactive(input$plan_route, {
     req(input$rp_location_start, input$rp_location_end)
@@ -38,6 +39,11 @@ server <- function(input, output, session) {
   output$route_message <- renderText({
     rp <- route_plan()
     rp$msg
+  })
+  
+  observe({
+    toggleState("plan_route", !is.null(input$rp_location_start) && input$rp_location_start != "" &&
+                  !is.null(input$rp_location_end) && input$rp_location_end != "")
   })
   
   # When a marker is clicked: zoom in and center
@@ -119,8 +125,26 @@ server <- function(input, output, session) {
     
     leafletProxy("route_map") %>%
       clearGroup("route_line") %>%
-      addPolylines(data = rp$route, color = "blue", weight = 4, group = "route_line") %>%
+      addPolylines(data = rp$route, color = "blue", weight = 7, group = "route_line") %>%
+      
+      # Add labels for start and end locations
+      addLabelOnlyMarkers(
+        lng = rp$start$Longitude,
+        lat = rp$start$Latitude,
+        label = rp$start$Location,
+        labelOptions = labelOptions(noHide = TRUE, direction = "top", textsize = "13px"),
+        group = "route_line"
+      ) %>%
+      addLabelOnlyMarkers(
+        lng = rp$end$Longitude,
+        lat = rp$end$Latitude,
+        label = rp$end$Location,
+        labelOptions = labelOptions(noHide = TRUE, direction = "top", textsize = "13px"),
+        group = "route_line"
+      ) %>%
+      
       fitBounds(min(lngs), min(lats), max(lngs), max(lats))
+    
   })
   
   observeEvent(input$clear_route, {
@@ -139,6 +163,13 @@ server <- function(input, output, session) {
           lat2 = init_bounds$lat2
         )
     }
+    
+    # NEW: Clear selected inputs
+    updateSelectInput(session, "rp_location_start", selected = "")
+    updateSelectInput(session, "rp_location_end", selected = "")
+    
+    # Clear route text
+    route_text("")
   })
   
   
@@ -187,6 +218,7 @@ server <- function(input, output, session) {
         fillOpacity = 1,
         color = "black",
         fillColor = ~pal(Park_Proximity),
+        label = ~Location,  
         popup = ~paste(Description, "<br><br><b>Transportation Access:</b> ", Transportation_Access)
       ) %>%
       addMeasure(
@@ -339,13 +371,16 @@ server <- function(input, output, session) {
   }
   
   
-  route_msg <- eventReactive(input$plan_route, {
-    get_route_message(input$rp_location_start, input$rp_location_end, location_lookup)
+  observeEvent(input$plan_route, {
+    msg <- get_route_message(input$rp_location_start, input$rp_location_end, location_lookup)
+    route_text(msg)
   })
+  
+  
   
   output$route_message <- renderUI({
     # route_msg() returns text with \n line breaks
-    HTML(gsub("\n", "<br>", route_msg()))
+    HTML(gsub("\n", "<br>", route_text()))
   })
   
   

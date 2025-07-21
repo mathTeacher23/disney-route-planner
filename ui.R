@@ -62,8 +62,9 @@ ui <- page_sidebar(
     style = "height: 610px;",
     card_header("Route Planner"),
     card_body(
-      selectInput("rp_location_start", "From:", choices = location_lookup$Location),
-      selectInput("rp_location_end", "To:", choices = location_lookup$Location),
+      selectInput("rp_location_start", "Start Location", choices = c("", unique(location_lookup$Location)), selected = ""),
+      selectInput("rp_location_end", "End Location", choices = c("", unique(location_lookup$Location)), selected = ""),
+      
       actionButton("plan_route", "Plan Route", class = "btn-primary"),
       HTML("<p> <b> Suggested Route </b></p>"),
       #textOutput("route_message", container = tags$p),
