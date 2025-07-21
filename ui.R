@@ -59,14 +59,15 @@ ui <- page_sidebar(
 ")),
   card(
     class = "highlight-card",
-    style = "height: 600px;",
+    style = "height: 610px;",
     card_header("Route Planner"),
     card_body(
       selectInput("rp_location_start", "From:", choices = location_lookup$Location),
       selectInput("rp_location_end", "To:", choices = location_lookup$Location),
       actionButton("plan_route", "Plan Route", class = "btn-primary"),
       HTML("<p> <b> Suggested Route </b></p>"),
-      textOutput("route_message", container = tags$p),
+      #textOutput("route_message", container = tags$p),
+      uiOutput("route_message"),
       actionButton("clear_route", "Clear Route")
       
     )

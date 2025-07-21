@@ -223,10 +223,12 @@ server <- function(input, output, session) {
       if (is.na(x) || x == "") return(character(0))
       trimws(unlist(strsplit(x, ",")))
     }
+    
     # Safety check for identical locations
     if (start_loc == end_loc) {
       return(paste("You're already at", start_loc, "— no travel needed!"))
     }
+    
     # Get start/end rows
     start_row <- lookup %>% filter(Location == start_loc)
     end_row <- lookup %>% filter(Location == end_loc)
@@ -269,49 +271,83 @@ server <- function(input, output, session) {
     }
     
     # CASE 2: Both are Resorts — must route through Park or Disney Springs
-    # If both have Skyliner and share proximity, allow that as a special case
+    # Skyliner special case
     if ("Skyliner" %in% start_modes && "Skyliner" %in% end_modes &&
         start_prox == end_prox && start_prox %in% c("Epcot", "Hollywood Studios")) {
       return("Both resorts are on the Skyliner route. You may take the Skyliner directly between them.")
     }
     
-    # Get the park to route through — based on start's Park_Proximity
-    hub <- lookup %>%
-      filter(Class %in% c("Park", "Shopping Plaza"), Location == start_prox | Location == end_prox)
+    # Find hubs for start and end proximities
+    hubs <- lookup %>%
+      filter(Class %in% c("Park", "Shopping Plaza") & (Location == start_prox | Location == end_prox))
     
-    if (nrow(hub) == 0) {
+    if (nrow(hubs) == 0) {
       return("Could not find a nearby park hub for routing.")
     }
     
-    hub_row <- hub[1, ]  # Use first match
+    # Get hubs individually for start and end proximity
+    start_hub <- hubs %>% filter(Location == start_prox)
+    end_hub <- hubs %>% filter(Location == end_prox)
     
-    hub_modes <- split_modes(hub_row$Transportation_Access)
+    # Ensure fallback if either hub missing
+    if (nrow(start_hub) == 0) start_hub <- hubs[1, ]
+    if (nrow(end_hub) == 0) end_hub <- hubs[1, ]
     
-    # Leg 1: start → hub
-    leg1_modes <- clean_intersect(start_modes, hub_modes, start_prox, hub_row$Park_Proximity)
-    # Leg 2: hub → end
-    leg2_modes <- clean_intersect(end_modes, hub_modes, end_prox, hub_row$Park_Proximity)
+    # Helper to get modes for leg
+    get_leg_modes <- function(from_modes, to_hub) {
+      clean_intersect(from_modes, split_modes(to_hub$Transportation_Access), 
+                      from_modes = from_modes, prox1 = NA, prox2 = NA)
+    }
     
-    if (length(leg1_modes) == 0 || length(leg2_modes) == 0) {
+    # Option 1: start → start_hub → end
+    leg1_modes_1 <- clean_intersect(start_modes, split_modes(start_hub$Transportation_Access), start_prox, start_hub$Park_Proximity)
+    leg2_modes_1 <- clean_intersect(end_modes, split_modes(start_hub$Transportation_Access), end_prox, start_hub$Park_Proximity)
+    
+    # Option 2: start → end_hub → end
+    leg1_modes_2 <- clean_intersect(start_modes, split_modes(end_hub$Transportation_Access), start_prox, end_hub$Park_Proximity)
+    leg2_modes_2 <- clean_intersect(end_modes, split_modes(end_hub$Transportation_Access), end_prox, end_hub$Park_Proximity)
+    
+    # Build messages for both options if valid
+    messages <- c()
+    
+    if (length(leg1_modes_1) > 0 && length(leg2_modes_1) > 0) {
+      messages <- c(messages,
+                    paste0(
+                      "Option 1: Start at ", start_loc, " and take the ", paste(leg1_modes_1, collapse = ", "),
+                      " to ", start_hub$Location, ". Then take the ", paste(leg2_modes_1, collapse = ", "),
+                      " to ", end_loc, "."
+                    )
+      )
+    }
+    
+    if (length(leg1_modes_2) > 0 && length(leg2_modes_2) > 0) {
+      messages <- c(messages,
+                    paste0(
+                      "Option 2: Start at ", start_loc, " and take the ", paste(leg1_modes_2, collapse = ", "),
+                      " to ", end_hub$Location, ". Then take the ", paste(leg2_modes_2, collapse = ", "),
+                      " to ", end_loc, "."
+                    )
+      )
+    }
+    
+    if (length(messages) == 0) {
       return("No valid transportation path found between these resorts via Disney transportation.")
     }
     
-    msg <- paste0(
-      "Start at ", start_loc, " and take the ", paste(leg1_modes, collapse = ", "),
-      " to ", hub_row$Location, ". Then take the ", paste(leg2_modes, collapse = ", "),
-      " to ", end_loc, "."
-    )
-    
-    return(msg)
+    # Return combined options separated by newlines
+    paste(messages, collapse = "\n\n")
   }
+  
   
   route_msg <- eventReactive(input$plan_route, {
     get_route_message(input$rp_location_start, input$rp_location_end, location_lookup)
   })
   
-  output$route_message <- renderText({
-    route_msg()
+  output$route_message <- renderUI({
+    # route_msg() returns text with \n line breaks
+    HTML(gsub("\n", "<br>", route_msg()))
   })
+  
   
   
   
