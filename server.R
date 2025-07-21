@@ -391,6 +391,25 @@ server <- function(input, output, session) {
   })
   
   
+  output$nearby_places <- renderUI({
+    req(input$plan_route)
+    
+    dest <- input$rp_location_end
+    
+    nearby <- disney_df %>%
+      filter(Location == dest & Class %in% c("Dining", "Attraction", "Shopping")) %>%
+      arrange(Class, Id)
+    
+    if (nrow(nearby) == 0) return(NULL)
+    
+    items <- apply(nearby, 1, function(row) {
+      paste0("<b>", row["Id"], "</b><br>",
+             row["Class"], " at ", row["Location"], "<br>",
+             "Price: ", row["Price"], "<br><br>")
+    })
+    
+    HTML(paste(items, collapse = ""))
+  })
   
   
 } # end of server
