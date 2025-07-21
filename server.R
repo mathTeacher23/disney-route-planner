@@ -3,6 +3,7 @@ server <- function(input, output, session) {
   route_bounds <- reactiveVal(NULL)
   initial_bounds <- reactiveVal(NULL)
   route_text <- reactiveVal("")
+  show_nearby <- reactiveVal(FALSE)
   
   route_plan <- eventReactive(input$plan_route, {
     req(input$rp_location_start, input$rp_location_end)
@@ -114,6 +115,11 @@ server <- function(input, output, session) {
     rp <- route_plan()
     if (is.null(rp$route)) return()
     
+    # Update the Route and Destination Instructions
+    msg <- get_route_message(input$rp_location_start, input$rp_location_end, location_lookup)
+    route_text(msg)
+    show_nearby(TRUE)
+    
     lngs <- c(rp$start$Longitude, rp$end$Longitude)
     lats <- c(rp$start$Latitude, rp$end$Latitude)
     
@@ -170,6 +176,7 @@ server <- function(input, output, session) {
     
     # Clear route text
     route_text("")
+    show_nearby(FALSE)
   })
   
   
@@ -377,11 +384,7 @@ server <- function(input, output, session) {
     
   }
   
-  
-  observeEvent(input$plan_route, {
-    msg <- get_route_message(input$rp_location_start, input$rp_location_end, location_lookup)
-    route_text(msg)
-  })
+
   
   
   
@@ -392,7 +395,7 @@ server <- function(input, output, session) {
   
   
   output$nearby_places <- renderUI({
-    req(input$plan_route)
+    req(show_nearby())
     
     dest <- input$rp_location_end
     
