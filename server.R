@@ -342,10 +342,11 @@ server <- function(input, output, session) {
     # Build messages for both options if valid
     messages <- c()
     
+    # Start with raw route instructions (no Option X prefix)
     if (length(leg1_modes_1) > 0 && length(leg2_modes_1) > 0) {
       messages <- c(messages,
                     paste0(
-                      "Option 1: Start at ", start_loc, " and take the ", paste(leg1_modes_1, collapse = ", "),
+                      "Start at ", start_loc, " and take the ", paste(leg1_modes_1, collapse = ", "),
                       " to ", start_hub$Location, ". Then take the ", paste(leg2_modes_1, collapse = ", "),
                       " to ", end_loc, "."
                     )
@@ -355,19 +356,25 @@ server <- function(input, output, session) {
     if (length(leg1_modes_2) > 0 && length(leg2_modes_2) > 0) {
       messages <- c(messages,
                     paste0(
-                      "Option 2: Start at ", start_loc, " and take the ", paste(leg1_modes_2, collapse = ", "),
+                      "Start at ", start_loc, " and take the ", paste(leg1_modes_2, collapse = ", "),
                       " to ", end_hub$Location, ". Then take the ", paste(leg2_modes_2, collapse = ", "),
                       " to ", end_loc, "."
                     )
       )
     }
     
-    if (length(messages) == 0) {
-      return("No valid transportation path found between these resorts via Disney transportation.")
+    # Remove duplicate route instructions
+    messages <- unique(messages)
+    
+    # Only add Option labels if there's more than one unique message
+    if (length(messages) > 1) {
+      messages <- paste0("Option ", seq_along(messages), ": ", messages)
     }
     
-    # Return combined options separated by newlines
-    paste(messages, collapse = "\n\n")
+    # Combine into one message string
+    return(paste(messages, collapse = "\n\n"))
+    
+    
   }
   
   
