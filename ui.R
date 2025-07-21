@@ -66,7 +66,9 @@ ui <- page_sidebar(
       selectInput("rp_location_end", "To:", choices = location_lookup$Location),
       actionButton("plan_route", "Plan Route", class = "btn-primary"),
       HTML("<p> <b> Suggested Route </b></p>"),
-      textOutput("route_message", container = tags$p)
+      textOutput("route_message", container = tags$p),
+      actionButton("clear_route", "Clear Route")
+      
     )
   )
     ),

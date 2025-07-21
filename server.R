@@ -1,6 +1,7 @@
 server <- function(input, output, session) {
   
   route_bounds <- reactiveVal(NULL)
+  initial_bounds <- reactiveVal(NULL)
   
   route_plan <- eventReactive(input$plan_route, {
     req(input$rp_location_start, input$rp_location_end)
@@ -53,7 +54,20 @@ server <- function(input, output, session) {
   
   observeEvent(input$map_clicked_blank, {
     bounds <- route_bounds()
-    if (!is.null(bounds)) {
+    if (is.null(bounds)) {
+      # No route displayed, reset to initial map bounds
+      init_bounds <- initial_bounds()
+      if (!is.null(init_bounds)) {
+        leafletProxy("route_map") %>%
+          fitBounds(
+            lng1 = init_bounds$lng1,
+            lat1 = init_bounds$lat1,
+            lng2 = init_bounds$lng2,
+            lat2 = init_bounds$lat2
+          )
+      }
+    } else {
+      # Route exists, fit to route bounds
       leafletProxy("route_map") %>%
         fitBounds(
           lng1 = bounds$lng1,
@@ -66,7 +80,20 @@ server <- function(input, output, session) {
   
   observeEvent(input$popup_closed, {
     bounds <- route_bounds()
-    if (!is.null(bounds)) {
+    if (is.null(bounds)) {
+      # No route displayed, reset to initial map bounds
+      init_bounds <- initial_bounds()
+      if (!is.null(init_bounds)) {
+        leafletProxy("route_map") %>%
+          fitBounds(
+            lng1 = init_bounds$lng1,
+            lat1 = init_bounds$lat1,
+            lng2 = init_bounds$lng2,
+            lat2 = init_bounds$lat2
+          )
+      }
+    } else {
+      # Route exists, fit to route bounds
       leafletProxy("route_map") %>%
         fitBounds(
           lng1 = bounds$lng1,
@@ -77,8 +104,6 @@ server <- function(input, output, session) {
     }
   })
   
-  
-  
   observeEvent(input$plan_route, {
     rp <- route_plan()
     if (is.null(rp$route)) return()
@@ -86,15 +111,37 @@ server <- function(input, output, session) {
     lngs <- c(rp$start$Longitude, rp$end$Longitude)
     lats <- c(rp$start$Latitude, rp$end$Latitude)
     
-    # Save bounds
+    # Save the route bounds (for zooming on route)
     route_bounds(list(
       lng1 = min(lngs), lat1 = min(lats),
       lng2 = max(lngs), lat2 = max(lats)
     ))
     
     leafletProxy("route_map") %>%
+      clearGroup("route_line") %>%
+      addPolylines(data = rp$route, color = "blue", weight = 4, group = "route_line") %>%
       fitBounds(min(lngs), min(lats), max(lngs), max(lats))
   })
+  
+  observeEvent(input$clear_route, {
+    leafletProxy("route_map") %>%
+      clearGroup("route_line")
+    
+    route_bounds(NULL)  # Clear route bounds since no route displayed
+    
+    init_bounds <- initial_bounds()
+    if (!is.null(init_bounds)) {
+      leafletProxy("route_map") %>%
+        fitBounds(
+          lng1 = init_bounds$lng1,
+          lat1 = init_bounds$lat1,
+          lng2 = init_bounds$lng2,
+          lat2 = init_bounds$lat2
+        )
+    }
+  })
+  
+  
   
   get_leaflet_data <- function(){
     leaflet_data <- disney_df
@@ -116,27 +163,22 @@ server <- function(input, output, session) {
   }
   
   output$route_map <- renderLeaflet({
-    rp <- route_plan()
-    if (is.null(rp$route)) return(NULL)
-    
+    # Load base data
     nearby_df <- get_leaflet_data()
     pal <- colorFactor(palette = 'Set1', domain = nearby_df$Park_Proximity)
     
-    start_name <- rp$start$Location
-    end_name <- rp$end$Location
+    # Calculate and save initial bounds when the map loads for the first time
+    lngs <- nearby_df$Longitude
+    lats <- nearby_df$Latitude
+    initial_bounds(list(
+      lng1 = min(lngs), lat1 = min(lats),
+      lng2 = max(lngs), lat2 = max(lats)
+    ))
     
-    nearby_df <- nearby_df %>%
-      mutate(
-        is_start = Location == start_name,
-        is_end = Location == end_name,
-        label_text = case_when(
-          is_start ~ paste0("Start: ", Location),
-          is_end ~ paste0("End: ", Location),
-          TRUE ~ NA_character_
-        )
-      )
-    
-    map <- leaflet(data = nearby_df) %>%
+    leaflet(data = nearby_df) %>%
+      addTiles(group = "OSM") %>%
+      addProviderTiles("Esri.WorldImagery", group = "ESRI") %>%
+      addProviderTiles("CartoDB.Positron", group = "Carto Light") %>%
       addCircleMarkers(
         lng = ~Longitude,
         lat = ~Latitude,
@@ -145,14 +187,8 @@ server <- function(input, output, session) {
         fillOpacity = 1,
         color = "black",
         fillColor = ~pal(Park_Proximity),
-        label = ~label_text,
-        labelOptions = labelOptions(noHide = FALSE, direction = "auto"),
         popup = ~paste(Description, "<br><br><b>Transportation Access:</b> ", Transportation_Access)
       ) %>%
-      addPolylines(data = rp$route, color = "blue", weight = 4) %>%
-      addTiles(group = "OSM") %>%
-      addProviderTiles("Esri.WorldImagery", group = "ESRI") %>%
-      addProviderTiles("CartoDB.Positron", group = "Carto Light") %>%
       addMeasure(
         position = "bottomleft",
         primaryLengthUnit = "meters",
@@ -167,22 +203,18 @@ server <- function(input, output, session) {
         values = ~Park_Proximity,
         title = "Nearby Disney Parks & Shopping",
         opacity = 1
-      )
-    
-    # Attach the onRender JS to detect blank map clicks and popup close
-    htmlwidgets::onRender(map, "
-    function(el, x) {
-      var map = this;
-
-      map.on('click', function(e) {
-        Shiny.setInputValue('map_clicked_blank', Date.now());
-      });
-
-      map.on('popupclose', function(e) {
-        Shiny.setInputValue('popup_closed', Date.now());
-      });
-    }
-  ")
+      ) %>%
+      htmlwidgets::onRender("
+      function(el, x) {
+        var map = this;
+        map.on('click', function(e) {
+          Shiny.setInputValue('map_clicked_blank', Date.now());
+        });
+        map.on('popupclose', function(e) {
+          Shiny.setInputValue('popup_closed', Date.now());
+        });
+      }
+    ")
   })
   
   
