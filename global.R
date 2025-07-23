@@ -20,34 +20,34 @@ location_lookup <- disney_df %>%
 #write.csv(location_lookup, "/Users/andrewcasanova/Documents/data_science_projects/rshiny_projects/DISNEY_ROUTE_PLANNER_APP/utils/disney_lookup.csv", row.names = FALSE)
 
 # Define walkable groups
-walkable_groups <- list(
-  c("Pop Century", "Riviera", "Caribbean Beach", "Art of Animation"),
-  c("All Star Sports", "All Star Movies", "All Star Music"),
-  c("Port Orleans Riverside", "Port Orleans French Quarter"),
-  c("Grand Floridian", "Polynesian"),
-  c("Contemporary", "Magic Kingdom"),
-  c("Boardwalk Inn", "Beach Club", "Yacht Club", "Epcot", "Swan", "Dolphin"),
-  c("Saratoga Springs", "Disney Springs")
-)
-
-all_locations <- location_lookup$Location
-walkable_flat <- unique(unlist(walkable_groups))
-
-missing <- setdiff(all_locations, walkable_flat)
-print(missing)
-
-location_lookup$Walkable_To[location_lookup$Location %in% missing] <- NA
-
-# Reset column
-location_lookup$Walkable_To <- ""
-
-# Assign walkable groups exactly
-for (group in walkable_groups) {
-  for (loc in group) {
-    others <- setdiff(group, loc)
-    location_lookup$Walkable_To[location_lookup$Location == loc] <- paste(others, collapse = ", ")
-  }
-}
+# walkable_groups <- list(
+#   c("Pop Century", "Riviera", "Caribbean Beach", "Art of Animation"),
+#   c("All Star Sports", "All Star Movies", "All Star Music"),
+#   c("Port Orleans Riverside", "Port Orleans French Quarter"),
+#   c("Grand Floridian", "Polynesian"),
+#   c("Contemporary", "Magic Kingdom"),
+#   c("Boardwalk Inn", "Beach Club", "Yacht Club", "Epcot", "Swan", "Dolphin"),
+#   c("Saratoga Springs", "Disney Springs")
+# )
+# 
+# all_locations <- location_lookup$Location
+# walkable_flat <- unique(unlist(walkable_groups))
+# 
+# missing <- setdiff(all_locations, walkable_flat)
+# print(missing)
+# 
+# location_lookup$Walkable_To[location_lookup$Location %in% missing] <- NA
+# 
+# # Reset column
+# location_lookup$Walkable_To <- ""
+# 
+# # Assign walkable groups exactly
+# for (group in walkable_groups) {
+#   for (loc in group) {
+#     others <- setdiff(group, loc)
+#     location_lookup$Walkable_To[location_lookup$Location == loc] <- paste(others, collapse = ", ")
+#   }
+# }
 resort_list <- c('All Star Movies','All Star Music','All Star Sports', 'Animal Kingdom Lodge', 'Art of Animation', 'Beach Club', 'Boardwalk Inn', 
                  'Caribbean Beach', 'Contemporary', 'Coronado Springs','Dolphin', 'Grand Floridian', 'Old Key West', 'Polynesian', 'Pop Century', 
                  'Port Orleans French Quarter', 'Port Orleans Riverside', 'Riviera', 'Saratoga Springs', 'Swan', 'Wilderness Lodge', 'Yacht Club')
@@ -142,4 +142,47 @@ blurb_df$hyperlinks <-c('<br> <a href="https://disneyworld.disney.go.com/search/
                         '<br> <a href="https://disneyworld.disney.go.com/search/?searchQuery=Yacht%20Club"> Visit Disney World Website!</a>')
 
 blurb_df$Description <- paste0(blurb_df$Description, blurb_df$hyperlinks)
+
+
+walkable_df <- data.frame(
+  From = character(),
+  To = character(),
+  Walk_Comment = character(),
+  stringsAsFactors = FALSE
+)
+
+add_walkable_pair <- function(group, note = "") {
+  for (i in seq_along(group)) {
+    for (j in seq_along(group)) {
+      if (i != j) {
+        walkable_df <<- rbind(walkable_df, data.frame(
+          From = group[i],
+          To = group[j],
+          Walk_Comment = note,
+          stringsAsFactors = FALSE
+        ))
+      }
+    }
+  }
+}
+
+# walkable_groups <- list(
+#   c("Pop Century", "Riviera", "Caribbean Beach", "Art of Animation"),
+#   c("All Star Sports", "All Star Movies", "All Star Music"),
+#   c("Port Orleans Riverside", "Port Orleans French Quarter"),
+#   c("Grand Floridian", "Polynesian"),
+#   c("Contemporary", "Magic Kingdom"),
+#   c("Boardwalk Inn", "Beach Club", "Yacht Club", "Epcot", "Swan", "Dolphin"),
+#   c("Saratoga Springs", "Disney Springs")
+# )
+# Example groups
+# TODO: Need to update these edge cases for walking availability only
+add_walkable_pair(c("Pop Century", "Riviera", "Caribbean Beach", "Art of Animation"),
+                  note = "However, even though you can walk between these, the Skyliner is usually faster.")
+add_walkable_pair(c("Contemporary", "Magic Kingdom"),
+                  note = "Walking is faster than the monorail in this case.")
+add_walkable_pair(c("Grand Floridian", "Polynesian"),
+                  note = "Walking path is scenic, but the monorail is available if you don't mind additional stops.")
+
+# Add others...
 

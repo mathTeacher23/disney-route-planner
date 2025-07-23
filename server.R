@@ -4,6 +4,27 @@ server <- function(input, output, session) {
   initial_bounds <- reactiveVal(NULL)
   route_text <- reactiveVal("")
   show_nearby <- reactiveVal(FALSE)
+  nearby_data <- reactiveVal(NULL)
+  
+  
+  observeEvent(input$swap_locations, {
+    current_start <- input$rp_location_start
+    current_end <- input$rp_location_end
+    
+    # Swap values only if both are non-empty
+    if (!is.null(current_start) && !is.null(current_end) &&
+        current_start != "" && current_end != "") {
+      
+      updateSelectInput(session, "rp_location_start", selected = current_end)
+      updateSelectInput(session, "rp_location_end", selected = current_start)
+    }
+  })
+  
+  observe({
+    toggleState("swap_locations", 
+                !is.null(input$rp_location_start) && input$rp_location_start != "" &&
+                  !is.null(input$rp_location_end) && input$rp_location_end != "")
+  })
   
   route_plan <- eventReactive(input$plan_route, {
     req(input$rp_location_start, input$rp_location_end)
@@ -116,9 +137,17 @@ server <- function(input, output, session) {
     if (is.null(rp$route)) return()
     
     # Update the Route and Destination Instructions
-    msg <- get_route_message(input$rp_location_start, input$rp_location_end, location_lookup)
-    route_text(msg)
+    route_text(get_route_message(input$rp_location_start, input$rp_location_end, location_lookup))
     show_nearby(TRUE)
+    
+    # Update the nearby places data now
+    dest <- input$rp_location_end
+    nearby <- disney_df %>%
+      filter(Location == dest & Class %in% c("Dining", "Attraction", "Shopping")) %>%
+      arrange(Class, Id)
+    
+    # Store the nearby data for rendering
+    nearby_data(nearby)
     
     lngs <- c(rp$start$Longitude, rp$end$Longitude)
     lats <- c(rp$start$Latitude, rp$end$Latitude)
@@ -149,7 +178,14 @@ server <- function(input, output, session) {
         group = "route_line"
       ) %>%
       
-      fitBounds(min(lngs), min(lats), max(lngs), max(lats))
+      fitBounds(min(lngs), min(lats), max(lngs), max(lats)) %>%
+      htmlwidgets::onRender("
+    function(el, x) {
+      var map = this;
+      var currentZoom = map.getZoom();
+      map.setZoom(currentZoom - 1);
+    }
+  ")
     
   })
   
@@ -276,11 +312,19 @@ server <- function(input, output, session) {
     if (nrow(start_row) == 0 || nrow(end_row) == 0) return("Invalid location selection.")
     
     # --- NEW WALK CHECK ---
-    walkable_str <- start_row$Walkable_To
-    walkable_vec <- split_modes(walkable_str)
-    if (end_loc %in% walkable_vec) {
-      return(paste("You can walk directly from", start_loc, "to", end_loc, "."))
+    # walkable_str <- start_row$Walkable_To
+    # walkable_vec <- split_modes(walkable_str)
+    # if (end_loc %in% walkable_vec) {
+    #   return(paste("You can walk directly from", start_loc, "to", end_loc, "."))
+    # }
+    walk_note <- walkable_df %>% 
+      filter(From == start_loc & To == end_loc) %>% 
+      pull(Walk_Comment)
+    
+    if (length(walk_note) > 0) {
+      return(paste0("🚶 You can walk from ", start_loc, " to ", end_loc, ". ", walk_note))
     }
+    
     # ----------------------
     
     start_class <- start_row$Class
@@ -384,9 +428,6 @@ server <- function(input, output, session) {
     
   }
   
-
-  
-  
   
   output$route_message <- renderUI({
     # route_msg() returns text with \n line breaks
@@ -396,14 +437,8 @@ server <- function(input, output, session) {
   
   output$nearby_places <- renderUI({
     req(show_nearby())
-    
-    dest <- input$rp_location_end
-    
-    nearby <- disney_df %>%
-      filter(Location == dest & Class %in% c("Dining", "Attraction", "Shopping")) %>%
-      arrange(Class, Id)
-    
-    if (nrow(nearby) == 0) return(NULL)
+    nearby <- nearby_data()
+    req(!is.null(nearby), nrow(nearby) > 0)
     
     items <- apply(nearby, 1, function(row) {
       paste0("<b>", row["Id"], "</b><br>",

@@ -75,7 +75,9 @@ ui <- page_sidebar(
         selected = ""
       ),
       actionButton("plan_route", "Plan Route", class = "btn-primary"),
-      actionButton("clear_route", "Clear Route")
+      actionButton("clear_route", "Clear Route"),
+      hr(),
+      actionButton("swap_locations", "🔁 Swap", class = "btn-secondary")
     ),
     
     wellPanel(
@@ -89,6 +91,6 @@ ui <- page_sidebar(
   
   mainPanel(
     width = 800,
-    leafletOutput("route_map", height = 600)
+    leafletOutput("route_map", height = 750)
   )
 )
