@@ -441,13 +441,17 @@ server <- function(input, output, session) {
     req(!is.null(nearby), nrow(nearby) > 0)
     
     items <- apply(nearby, 1, function(row) {
-      paste0("<b>", row["Id"], "</b><br>",
-             row["Class"], " at ", row["Location"], "<br>",
-             "Price: ", row["Price"], "<br><br>")
+      msg <- paste0("<b>", row["Id"], "</b><br>",
+                    row["Class"], " at ", row["Location"], "<br>")
+      if (row["Class"] != "Attraction") {
+        msg <- paste0(msg, "Price: ", row["Price"], "<br>")
+      }
+      paste0(msg, "<br>")
     })
     
     HTML(paste(items, collapse = ""))
   })
+  
   
   
 } # end of server

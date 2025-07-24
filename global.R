@@ -177,12 +177,21 @@ add_walkable_pair <- function(group, note = "") {
 # )
 # Example groups
 # TODO: Need to update these edge cases for walking availability only
-add_walkable_pair(c("Pop Century", "Riviera", "Caribbean Beach", "Art of Animation"),
-                  note = "However, even though you can walk between these, the Skyliner is usually faster.")
+add_walkable_pair(c("Riviera", "Caribbean Beach"),
+                  note = "The walk there may be a bit far. You might consider taking the Skyliner.")
 add_walkable_pair(c("Contemporary", "Magic Kingdom"),
-                  note = "Walking is faster than the monorail in this case.")
+                  note = "If you're in a hurry, walking is faster. However, the monorail is still an option.")
 add_walkable_pair(c("Grand Floridian", "Polynesian"),
-                  note = "Walking path is scenic, but the monorail is available if you don't mind additional stops.")
+                  note = "The walking paths to get there can be a little confusing, but the monorail is still an option if you're not in a hurry.")
+add_walkable_pair(c("Port Orleans Riverside", "Port Orleans French Quarter"),
+                  note = "The walk along the Sassagoula River is very peaceful, but you can also take a boat.")
+add_walkable_pair(c("All Star Sports", "All Star Movies", "All Star Music"),
+                  note = "You can enjoy a nice walk between these resorts.")
+add_walkable_pair(c("Pop Century", "Art of Animation"),
+                  note = "You should have an easy time walking there. You will pass the skyliner on your way there.")
+add_walkable_pair(c("Saratoga Springs", "Disney Springs", "Old Key West"),
+                  note = "The walk there is not too far, but if you enjoy boat rides that is also an option.")
+add_walkable_pair(c("Boardwalk Inn", "Beach Club", "Yacht Club", "Epcot", "Swan", "Dolphin"),
+                  note = "Keep in mind you also have the option of taking a boat.")
 
-# Add others...
 
